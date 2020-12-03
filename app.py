@@ -25,8 +25,9 @@ Station = Base.classes.station
 # --------------------------------------------------------------#
 app = Flask(__name__)
 # --------------------------------------------------------------#
-# Flask Routes
+# Setup Flask Routes
 # --------------------------------------------------------------#
+# ------- L I S T    A L L    R O U T E S ------- #
 @app.route("/")
 def welcome():
     """List all available api routes."""
@@ -36,29 +37,26 @@ def welcome():
         f"/api/v1.0/precipitation<br/>"
         f"/api/v1.0/stations<br/>"
         f"/api/v1.0/tobs<br/>"
-        f"/api/v1.0/start/end<br/>"
-        # f"/api/v1.0/<start><br/>"
-        # f"/api/v1.0/<start>/<end>"
+        f"/api/v1.0/tobs<br/>"
+        f"/api/v1.0/temp_range<br/>"
     )
-
 # ------- P R E C I P I T A T I O N    R O U T E ------- #
 @app.route("/api/v1.0/precipitation")
 def precipitation():
     # Create our session (link) from Python to the DB
     session = Session(engine)
-    # Query for the dates and precipitation values
+    # Query dates and precipitation values
     results =   session.query(Measurement.date, Measurement.prcp).\
                 order_by(Measurement.date).all()
-    # Convert to list of dictionaries to jsonify
+    # Convert to list of dictionaries, then jsonify
     precip_date_list = []
     for date, prcp in results:
-        new_dict = {}
-        new_dict[date] = prcp
-        precip_date_list.append(new_dict)
+        new_dicty = {}
+        new_dicty[date] = prcp
+        precip_date_list.append(new_dicty)
     session.close()
     return jsonify(precip_date_list)
-
-# # ------- S T A T I O N    R O U T E ------- #
+# ------- S T A T I O N    R O U T E ------- #
 @app.route("/api/v1.0/stations")
 def stations():
     # Create our session (link) from Python to the DB
@@ -70,6 +68,56 @@ def stations():
         stations[s] = name
     session.close()
     return jsonify(stations)
+# ------- T O B S    R O U T E ------- #
+@app.route("/api/v1.0/tobs")
+def tobs():
+    # Create our session (link) from Python to the DB
+    session = Session(engine)
+    # Find last date in MEASUREMENT table, and calculate date one year prior to that (by subtracting 365 days)
+    end_date = session.query(Measurement.date).order_by(Measurement.date.desc()).first()
+    last_year_date = (dt.datetime.strptime(end_date[0],'%Y-%m-%d') \
+                    - dt.timedelta(days=365)).strftime('%Y-%m-%d')
+    # Query dates & temperatures within that date range, from MEASUREMENT table
+    results =   session.query(Measurement.date, Measurement.tobs).\
+                filter(Measurement.date >= last_year_date).\
+                order_by(Measurement.date).all()
+    # Convert results to list of dictionaries, then jsonify
+    tobs_date_list = []
+    for date, tobs in results:
+        new_dicty = {}
+        new_dicty[date] = tobs
+        tobs_date_list.append(new_dicty)
+    session.close()
+    return jsonify(tobs_date_list)
+# ------- T E M P    R A N G E    R O U T E ------- #
+@app.route("/api/v1.0/temp_range")
+def temp_range_start(start):
+    """Min_Temp, Avg_Temp, and Max_Temp for date starting from a starting date.
+    Args:
+        start (string): A date string in the format %Y-%m-%d
+    Returns:
+        Min_Temp, Avg_Temp, and Max_Temp
+    """
+    # Create our session (link) from Python to the DB
+    session = Session(engine)
+    return_list = []
+    results =   session.query(  Measurement.date,\
+                                func.min(Measurement.tobs), \
+                                func.avg(Measurement.tobs), \
+                                func.max(Measurement.tobs)).\
+                        filter(Measurement.date >= start).\
+                        group_by(Measurement.date).all()
+    for date, min, avg, max in results:
+        new_dict = {}
+        new_dict["Date"] = date
+        new_dict["Min_Temp"] = min
+        new_dict["Avg_Temp"] = avg
+        new_dict["Max_Temp"] = max
+        return_list.append(new_dict)
+    session.close()    
+    return jsonify(return_list)
+
+
 
 
 
