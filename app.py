@@ -37,8 +37,7 @@ def welcome():
         f"/api/v1.0/precipitation<br/>"
         f"/api/v1.0/stations<br/>"
         f"/api/v1.0/tobs<br/>"
-        f"/api/v1.0/tobs<br/>"
-        f"/api/v1.0/temp_range<br/>"
+        f"/api/v1.0/start<br/>"
     )
 # ------- P R E C I P I T A T I O N    R O U T E ------- #
 @app.route("/api/v1.0/precipitation")
@@ -89,10 +88,10 @@ def tobs():
         tobs_date_list.append(new_dicty)
     session.close()
     return jsonify(tobs_date_list)
-# ------- T E M P    R A N G E    R O U T E ------- #
-@app.route("/api/v1.0/temp_range")
+# ------- S T A R T    R O U T E ------- #
+@app.route("/api/v1.0/start")
 def temp_range_start(start):
-    """Min_Temp, Avg_Temp, and Max_Temp for date starting from a starting date.
+    """Min_Temp, Avg_Temp, and Max_Temp per date starting from a starting date.
     Args:
         start (string): A date string in the format %Y-%m-%d
     Returns:
@@ -100,7 +99,7 @@ def temp_range_start(start):
     """
     # Create our session (link) from Python to the DB
     session = Session(engine)
-    return_list = []
+    start_list = []
     results =   session.query(  Measurement.date,\
                                 func.min(Measurement.tobs), \
                                 func.avg(Measurement.tobs), \
@@ -113,13 +112,11 @@ def temp_range_start(start):
         new_dict["Min_Temp"] = min
         new_dict["Avg_Temp"] = avg
         new_dict["Max_Temp"] = max
-        return_list.append(new_dict)
+        start_list.append(new_dict)
     session.close()    
-    return jsonify(return_list)
-
-
-
-
-
+    return jsonify(start_list)
+# --------------------------------------------------------------#
+# Debug
+# --------------------------------------------------------------#
 if __name__ == '__main__':
     app.run(debug=True)
